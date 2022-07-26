@@ -1,0 +1,113 @@
+HIVE
+
+create table posts (id int, post_type int, creation_date string, score int, viewcount float, owneruser_id int,title string, answercount int, commentcount int ) row format delimited fields terminated by ',';
+describe posts;
+load data inpath '/user/assessment/posts.csv' into table posts;
+select * from posts;
+select Count(*) from posts;
+
+create table comments (id int, userid int) row format delimited fields terminated by ',';
+describe comments;
+load data inpath '/user/assessment/comments.csv' into table comments;
+select * from comments;
+select Count(*) from comments;
+
+ 
+create table users (id int,reputation int,display_name string,loc string,age int) row format delimited fields terminated by ',';
+describe users;
+load data inpath '/user/assessment/users.csv' into table users;
+select * from users;
+select Count(*) from users;
+
+create table posttypes (id int, name string) row format delimited fields terminated by ',';
+describe posttypes;
+load data inpath '/user/assessment/posttypes.csv' into table posttypes;
+select * from posttypes;
+select Count(*) from posttypes;
+
+A) SELECT display_name,viewcount FROM posts INNER JOIN users ON (posts.id=users.id) ORDER BY viewcount DESC LIMIT 1;
+
+B) SELECT AVG(users.age) AS A FROM users;
+
+C) SELECT display_name,creation_date FROM users INNER JOIN posts ON (users.id=posts.id) ORDER BY creation_date ASC LIMIT 1;
+
+D) SELECT display_name,commentcount,reputation FROM users INNER JOIN posts ON (posts.id=users.id) ORDER BY reputation DESC LIMIT 1;
+
+E) SELECT display_name FROM users INNER JOIN posts ON (posts.id=users.id) ORDER BY (answercount+commentcount) DESC LIMIT 1;
+
+F) SELECT owneruser_id,display_name,viewcount FROM users INNER JOIN posts ON (posts.id=users.id) ORDER BY viewcount DESC LIMIT 1;
+
+G) SELECT title,owneruser_id,display_name,commentcount FROM users INNER JOIN posts ON (posts.id=users.id) ORDER BY commentcount DESC LIMIT 1;
+
+H) SELECT loc ,COUNT(id) AS B FROM users GROUP BY loc ORDER BY B DESC LIMIT 1;
+
+I) SELECT loc, COUNT(post_type) FROM users INNER JOIN posts ON (posts.id=users.id) WHERE loc LIKE '%India%' GROUP BY loc;
+
+
+PIG
+
+a = load '/user/assessment/posts.csv' using PigStorage(',') as (id:int, post_type:int, creation_date:chararray, score:int, viewcount:float, owneruser_id:int,title:chararray, answercount:int, commentcount:int );
+b = load '/user/assessment/comments.csv' using PigStorage(',') as (id:int, userid:int);
+c = load '/user/assessment/users.csv' using PigStorage(',') as (id:int,reputation:int,display_name:chararray,loc:chararray,age:int);
+d = load '/user/assessment/posttypes.csv' USING PigStorage(',') as (id:int, name:chararray);
+
+
+A)
+e = join a by id, c by id;
+f = ORDER e by reputation desc;
+g = limit f 1;
+h = foreach g generate display_name,post_type;
+
+B)
+e = group c ALL;
+f = foreach e generate AVG(c.age);
+dump f;
+
+C)
+e = join a by id,c by id;
+f = ORDER e by creation_date asc;
+g = limit f 1;
+h = foreach g generate display_name,creation_date;
+dump h;
+
+D)
+e = join a by id, c by id;
+f= ORDER e by reputation desc;
+g= limit f 1;
+h= foreach g generate displayname,commentcount;
+
+E)
+e = join a by id, c by id;
+f = ORDER e by score desc;
+g = limit f 1;
+h = foreach g generate display_name;
+
+F)
+e = join a by id, c by id;
+f = ORDER e by viewcount desc;
+g = limit f 1;
+h = foreach g generate display_name,owneruser_id;
+dump h;
+
+G)
+e = join a by id, c by id;
+f = ORDER e by commentcount desc;
+g = limit f 1;
+h = foreach g generate display_name,title;
+dump h;
+
+H)
+e = join a by id, c by id;
+f = group e by loc;
+g = foreach f generate group, COUNT(e.owneruser_id );
+store g into '/user/assessment/';
+h = ORDER g by  $01 desc;
+i = limit h 1;
+dump e;
+
+I)
+e = join a by id, c by id;
+f = filter e by loc=='India';
+g = group e ALL;
+h = foreach g generate SUM(f.commentcount),SUM(f.answercount),SUM(f.score);
+dump h;
